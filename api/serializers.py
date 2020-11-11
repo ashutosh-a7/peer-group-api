@@ -5,13 +5,15 @@ from .models import MyUser, MyGroup, Feedback, Meeting
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyUser
-        fields = ('id', 'email', 'password', 'is_student', 'groupId')
-        extra_kwargs = {'password': {'write_only': True}}
+        # fields = ('id', 'name', 'email', 'password', 'is_student', 'rating', 'group_id', 'availability')
+        fields = ('id', 'name', 'email', 'password', 'is_student', 'group_id', 'availability', 'created_at', 'updated_at')
+        # extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
         password = validated_data.pop('password')
         user = MyUser.objects.create_user(**validated_data)
         user.username = validated_data.get('email')
+        user.name = validated_data.get('name')
         user.is_student = validated_data.get('is_student')
         user.set_password(password)
         user.save()
@@ -48,16 +50,23 @@ class UserSerializer(serializers.ModelSerializer):
 class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = MyGroup
-        fields = ('id', 'groupName')
+        fields = ('id', 'name', 'created_at', 'updated_at')
+
+
+# class TaskSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Task
+#         fields = ('id', 'problem_statement', 'problem_link')
 
 
 class FeedbackSerializer(serializers.ModelSerializer):
     class Meta:
         model = Feedback
-        fields = ('id', 'grade', 'remarks', 'receiverId')
+        # fields = ('id', 'grade', 'remarks', 'receiver_id')
+        fields = ('id', 'remarks', 'receiver_id', 'created_at', 'updated_at')
 
 
 class MeetingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Meeting
-        fields = ('id', 'url', 'time', 'user', 'groupId')
+        fields = ('id', 'url', 'time', 'users', 'group_id', 'created_at', 'updated_at')

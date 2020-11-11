@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.contrib.auth.models import (
     BaseUserManager, AbstractBaseUser, PermissionsMixin
@@ -5,15 +6,30 @@ from django.contrib.auth.models import (
 
 
 # Create your models here.
-class MyGroup(models.Model):
-    groupName = models.CharField(max_length=200)
+from django.utils import timezone
+
+
+class Timestamp(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class MyGroup(Timestamp):
+    name = models.CharField(max_length=200, unique=True)
 
     def __str__(self):
-        return self.groupName
+        return self.name
+
+
+def get_default_group():
+    return MyGroup.objects.get(id=1)
 
 
 class MyUserManager(BaseUserManager):
-    def create_user(self, email, password=None, is_student=False, groupId=1):
+    def create_user(self, email, password=None, name=None, is_student=False, group_id=get_default_group()):
         """
         Creates and saves a User with the given email, role and password.
         """
@@ -22,8 +38,9 @@ class MyUserManager(BaseUserManager):
 
         user = self.model(
             email=self.normalize_email(email),
+            name=name,
             is_student=is_student,
-            groupId=groupId,
+            group_id=group_id,
         )
 
         user.set_password(password)
@@ -33,6 +50,7 @@ class MyUserManager(BaseUserManager):
         elif not user.is_student:
             user.is_superuser = True
             user.is_admin = True
+
             user.save(using=self._db)
         return user
 
@@ -53,7 +71,7 @@ class MyUserManager(BaseUserManager):
         return user
 
 
-class MyUser(AbstractBaseUser, PermissionsMixin):
+class MyUser(AbstractBaseUser, PermissionsMixin, Timestamp):
     email = models.EmailField(
         verbose_name='email address',
         max_length=255,
@@ -63,8 +81,11 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     is_admin = models.BooleanField(default=False)
 
-    is_student = models.BooleanField(default=False)
-    groupId = models.ForeignKey(MyGroup, on_delete=models.CASCADE)
+    is_student = models.BooleanField(default=False, null=True)
+    group_id = models.ForeignKey(MyGroup, on_delete=models.CASCADE, default=get_default_group)
+    name = models.CharField(max_length=256, null=True)
+    # rating = models.IntegerField(default=5, validators=[MinValueValidator(1), MaxValueValidator(5)])
+    availability = models.CharField(default='1900-2100', max_length=256)
 
     objects = MyUserManager()
 
@@ -90,20 +111,29 @@ class MyUser(AbstractBaseUser, PermissionsMixin):
         return self.is_admin
 
 
-class Feedback(models.Model):
-    grade = models.CharField(max_length=200)
+# class Task(models.Model):
+#     problem_statement = models.CharField(max_length=256)
+#     problem_link = models.CharField(max_length=256)
+#
+#     def __str__(self):
+#         return self.problem_statement
+
+
+class Feedback(Timestamp):
+    # rating = models.CharField(max_length=200)
     remarks = models.CharField(max_length=200)
-    receiverId = models.ForeignKey(MyUser, on_delete=models.CASCADE)
+    receiver_id = models.ForeignKey(MyUser, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.grade + " " + self.remarks + " " + str(self.receiverId)
+        # return self.rating + " " + self.remarks + " " + str(self.receiver_id)
+        return self.remarks + " " + str(self.receiver_id)
 
 
-class Meeting(models.Model):
-    groupId = models.ForeignKey(MyGroup, on_delete=models.CASCADE)
-    user = models.ManyToManyField(MyUser)
+class Meeting(Timestamp):
+    group_id = models.ForeignKey(MyGroup, on_delete=models.CASCADE)
+    users = models.ManyToManyField(MyUser)
     url = models.CharField(max_length=200, default=False, blank=False)
     time = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return str(self.groupId) + " " + str(self.user) + " " + self.url + " " + str(self.time)
+        return str(self.group_id) + " " + str(self.users) + " " + self.url + " " + str(self.time)
